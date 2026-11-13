@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+jspm_packages/
+
+# Build / test artifacts
+dist/
+build/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local runtime data (job-mate workspace lives in ~/.job-mate, never here;
+# these guard against anyone pointing a workspace at the repo)
+.job-mate/
+state.json
+profile.json
+candidate.md
+ledger.jsonl
+ledger.md
+stoplist.yaml
+
+# Private / local-only material (reviews, notes, scratch — never published)
+.private/
+
+# Local development tools and internal design work
+.agents/
+.claude/
+.grok/
+.hermes/
+skills-lock.json
+designs/
+
+# OS / editor noise
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+job-mate.sqlite3
+job-mate.sqlite3-*
+resumes/
+legacy/
+__pycache__/
+*.pyc
+*.tgz
