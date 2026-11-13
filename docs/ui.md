@@ -19,3 +19,19 @@
 语义与键盘：使用原生 button/input/select/details；显式搜索和筛选 label；文件输入有可见 label；焦点有轮廓；错误 role=alert、状态 role=status，禁用状态保留文字。界面中文，时间按浏览器 Locale 显示，时区来自系统；不宣称已完成其他语言本地化或屏幕阅读器真机认证。
 
 实际验证以测试结果和隔离 Harness 检查为准，不把此清单本身当作通过证据。更新主题时需再次检查深色、焦点和正文对比。
+
+## 插件更新
+
+侧栏在工作台未打开时也会检查版本；展开侧栏显示「有更新 / 更新中 / 更新失败 / 待重启」，收起侧栏用带可访问名称的圆点表示。工作台顶部显示当前运行版本、检查时间、新版本、更新按钮和可滚动的发布日志。日志按纯文本显示，不执行远程 HTML。
+
+| 场景 | 预期 |
+|---|---|
+| 有稳定新版本 | 侧栏提示；打开职伴可阅读日志并主动更新 |
+| 正在更新 | 禁用重复安装及新的工作台任务入口；状态保留在侧栏 |
+| 安装成功待重启 | 明确要求退出并重新打开 DSH；刷新页面后仍可识别 |
+| 检查/安装失败 | 不声称成功；显示错误和检查/重试入口 |
+| 本地源码安装 | 可查看新版本与日志，提示通过 DSH 插件管理安装 GitHub 版本 |
+| 正在求职 | 禁用更新；Host 也拒绝安装 |
+| 没有新版本 | 显示当前版本和检查入口；日志可展开 |
+
+交互参考 [baoyu-design 的 DSH 插件](https://github.com/JimLiu/baoyu-design/tree/main/dsh-plugins/dsh-claude-artifacts)，本项目独立实现；未复制其代码或视觉资产。宿主安装语义以 [Plugin Manager types](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/plugin-manager/src/types.ts) 为准。

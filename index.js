@@ -4,6 +4,7 @@ import { createApiHandler } from './lib/http.js'
 import { JobMateService } from './lib/service.js'
 import { registerJobMateTool } from './lib/tool.js'
 import { authAvailable } from './lib/auth.js'
+import { PluginUpdates } from './lib/updates.js'
 
 const PLUGIN_VERSION = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version
 
@@ -79,10 +80,11 @@ function registerSkills(ctx) {
 /**
  * Host half of the 职伴 bundle.
  *
- * Owns three things and nothing else:
+ * Owns the Harness adapter surfaces:
  * 1. 职伴’s own job-search workspace on disk (shared with the original upstream skills),
  * 2. one authenticated HTTP surface for the panel,
- * 3. one agent tool plus two skills that operate the same workspace.
+ * 3. one agent tool plus two skills that operate the same workspace,
+ * 4. public release metadata and user-triggered installation through Harness.
  */
 export function apply(ctx) {
   let warned = false
@@ -106,6 +108,7 @@ export function apply(ctx) {
     },
   })
 
+  const updates = new PluginUpdates({ version: PLUGIN_VERSION, getManager: () => ctx.get('pluginManager'), snapshot: () => service.snapshot() })
   ctx.effect(() =>
     ctx.webServer.register({
       kind: 'prefix',
@@ -113,6 +116,7 @@ export function apply(ctx) {
       handler: createApiHandler({
         service,
         getConnection,
+        updates,
       }),
     }),
   )

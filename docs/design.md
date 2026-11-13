@@ -23,3 +23,11 @@ job-mate 是唯一业务上游。插件携带两个完整 skill，保留原版 S
 ## 限制
 
 Python 是额外宿主运行依赖；当前插件会明确报告缺失，并由 Agent 按用户安装意图补齐。桌面操作能力由宿主提供，离线数据测试不能证明真实 BOSS 可用。每个工作区支持一个已核对的求职账号。
+
+## 版本更新
+
+`lib/updates.js` 读取本仓库 GitHub 最新稳定 Release；成功缓存六小时、失败退避五分钟，手动检查可重试。公共响应有十秒超时与 512 KiB 上限。侧栏和面板共用客户端状态与一个轮询，不必打开工作台才能发现更新。
+
+安装仅由已通过 Connection 认证的 POST 触发，不接受客户端传入 URL、包名或命令。Host 确认当前插件来自本仓库、没有运行中的求职任务后，将 Release tag 解析为完整提交，调用已核对的 `pluginManager.installBundle(spec, {enabled, saveExact, expected:{name,version}})`。DSH 校验目标包并负责安装、失败恢复及脚本授权，插件不拼 shell、不自动批准脚本。已加载版本与 DSH 发现的已安装版本分开，用来识别刷新页面后的「待重启」。更新服务不改动求职数据库或上游文件。
+
+接口依据：[InstallBundleOptions / ChangeResult](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/boot/plugin-manager/src/types.ts)。核对本机 DSH 0.2.2-rc.2 的同一实现；安装来源为开发目录时仅提供发布信息，避免覆盖开发源码。

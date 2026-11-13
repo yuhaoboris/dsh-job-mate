@@ -1,6 +1,6 @@
 {
   "name": "@yuhaoboris/dsh-job-mate",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "职伴：DeepSeek Harness 求职工作台（BOSS 直聘筛选、跟进与沟通记录）",
   "type": "module",
   "engines": {
@@ -21,7 +21,8 @@
     "vendor/job-mate/",
     "upstream-lock.json",
     "locale/*.json",
-    "icon.svg"
+    "icon.svg",
+    "CHANGELOG.md"
   ],
   "dependencies": {
     "mammoth": "1.13.0",

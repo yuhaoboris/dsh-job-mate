@@ -22,6 +22,14 @@ dsh plugin --profile web add https://github.com/yuhaoboris/dsh-job-mate
 
 GitHub 仓库地址和本地目录均属于 [DSH 官方支持的安装来源](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md)。开发时可在同一个「添加插件」输入框填写本项目的绝对目录路径。
 
+## 更新
+
+侧栏「职伴」会提示可用的新版本。打开工作台可查看更新日志，点击「更新插件」由 DSH 安装；出现「待重启」后，退出并重新打开 DSH。更新保留原求职工作区，需先结束正在执行的求职任务。
+
+启动后检查 GitHub 正式发布，成功结果缓存六小时；也可点击「检查更新」立即检查。检查只读取本仓库公开发布信息，不发送简历、偏好或求职记录。本地源码安装通过 DSH 插件管理更新。
+
+首次获得此更新功能，需将已安装的插件通过 DSH「插件」页卸载，再使用上面的仓库地址安装并重启。此操作不删除 `~/.job-mate` 求职工作区。
+
 ## 开始使用
 
 1. 打开侧栏「职伴」，选择 PDF、DOCX、HTML、TXT 或 Markdown 简历。
@@ -56,6 +64,7 @@ node scripts/sync-upstream.mjs --source /path/to/job-mate
 - `index.js`：Harness Host、工具与原版技能注册。
 - `client.js`：简历入口、求职摘要、记录详情与待决定事项。
 - `lib/core.js`：调用上游数据核心，不复制业务逻辑。
+- `lib/updates.js`：公开发布检查、版本比较与 DSH 安装适配。
 - `lib/service.js`：宿主工作区、简历上传和会话草稿适配。
 - `lib/http.js` / `lib/auth.js`：通过 Connection 认证访问面板数据。
 - `lib/resume*.js`：隔离线程提取文本，不执行 HTML、不读取外部资源。

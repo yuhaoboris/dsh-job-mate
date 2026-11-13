@@ -21,9 +21,65 @@ window.__ModuleLoader__.load({
       return result
     }
     function date(value) { if (!value) return '时间未知'; const d = new Date(value); return Number.isNaN(d.valueOf()) ? '时间未知' : d.toLocaleString() }
-    function Icon() { return h('svg', { viewBox: '0 0 24 24', width: 22, height: 22, fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true }, h('rect', { x: 3, y: 7, width: 18, height: 14, rx: 3 }), h('path', { d: 'M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M3 12h18M10 12v3h4v-3' })) }
+    function Icon({ size = 22 } = {}) { return h('svg', { viewBox: '0 0 24 24', width: size, height: size, fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true }, h('rect', { x: 3, y: 7, width: 18, height: 14, rx: 3 }), h('path', { d: 'M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M3 12h18M10 12v3h4v-3' })) }
     function Button({ children, primary, ...props }) { return h('button', { type: 'button', ...props, className: 'jm-button' + (primary ? ' jm-primary' : '') }, children) }
+    const UPDATE_STYLE = `
+    button:has(.jm-update-pill){position:relative}.jm-update-pill{position:absolute;right:32px;top:50%;transform:translateY(-50%);border-radius:8px;padding:1px 7px;font:11px/18px system-ui,sans-serif;background:var(--dsw-alias-bg-layer-2,#e4eee8);color:var(--dsw-alias-brand-primary,#275943);white-space:nowrap}.jm-update-icon{position:relative;display:inline-flex}.jm-update-dot{position:absolute;right:-3px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--dsw-alias-brand-primary,#275943)}
+    .jm-update{margin-bottom:24px}.jm-update .jm-head{margin-bottom:0}.jm-update h2{margin:0}.jm-update-notes{margin-top:16px;border-top:1px solid var(--dsw-alias-border-l2,#dde2db);padding-top:16px;max-height:320px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}.jm-update a{color:var(--dsw-alias-brand-primary,#275943);text-underline-offset:3px}.jm-update summary{cursor:pointer}.jm-update time{font-size:12px;color:var(--dsw-alias-label-secondary,#606b64)}
+    `
+    let updateState = { phase: 'idle' }, updateChecking = false, updateInstalling = false, updateGeneration = 0, updateTimer
+    const updateListeners = new Set()
+    function publishUpdate(value) { updateState = value; for (const listener of updateListeners) listener({ ...value, checking: updateChecking }) }
+    async function refreshUpdates(force = false) {
+      if (updateChecking || updateInstalling) return
+      const generation = ++updateGeneration
+      updateChecking = true; publishUpdate(updateState)
+      try { const result = await api(force ? '/updates/check' : '/updates', force ? {} : undefined); if (generation === updateGeneration) publishUpdate(result.update) }
+      catch (e) { if (generation === updateGeneration) publishUpdate({ ...updateState, error: e.message, phase: 'check-failed', canInstall: false }) }
+      finally { if (generation === updateGeneration) { updateChecking = false; publishUpdate(updateState) } }
+    }
+    async function installUpdate() {
+      if (!updateState.canInstall || updateState.phase === 'installing') return
+      ++updateGeneration; updateChecking = false; updateInstalling = true
+      publishUpdate({ ...updateState, phase: 'installing', canInstall: false, error: null })
+      try { const result = await api('/updates/install', {}); publishUpdate(result.update) }
+      catch (e) { publishUpdate({ ...updateState, phase: 'failed', error: '无法确认更新结果。检查更新以核对安装状态：' + e.message }) }
+      finally { updateInstalling = false }
+    }
+    function useUpdates() {
+      const [value, setValue] = useState(() => ({ ...updateState, checking: updateChecking }))
+      useEffect(() => {
+        updateListeners.add(setValue)
+        setValue({ ...updateState, checking: updateChecking })
+        if (updateListeners.size === 1) {
+          refreshUpdates()
+          updateTimer = setInterval(() => refreshUpdates(), 60000)
+        }
+        return () => { updateListeners.delete(setValue); if (!updateListeners.size) clearInterval(updateTimer) }
+      }, [])
+      return value
+    }
+    function UpdateIcon({ size = 16 }) {
+      const update = useUpdates()
+      const mark = update.phase === 'installing' ? '更新中' : update.phase === 'restart' ? '待重启' : update.phase === 'failed' ? '更新失败' : update.available ? '有更新' : null
+      return h(React.Fragment, null, h('style', null, UPDATE_STYLE), size <= 16 ? h(React.Fragment, null, h(Icon, { size }), mark && h('span', { className: 'jm-update-pill', 'aria-label': '职伴：' + mark }, mark)) : h('span', { className: 'jm-update-icon' }, h(Icon, { size }), mark && h('span', { className: 'jm-update-dot', role: 'img', 'aria-label': '职伴：' + mark, title: mark })))
+    }
+    function UpdatePanel({ taskRunning, ready }) {
+      const update = useUpdates()
+      const working = update.phase === 'installing', restart = update.phase === 'restart'
+      const title = restart ? `职伴已安装 ${update.installedVersion}，待重启` : working ? '正在更新职伴…' : update.available ? `职伴有新版本 ${update.release.version}` : update.phase === 'current' ? '职伴已是最新版本' : '职伴插件更新'
+      return h('section', { className: 'jm-card jm-update', 'aria-label': '插件更新', 'aria-busy': working || update.checking }, h('style', null, UPDATE_STYLE),
+        h('div', { className: 'jm-head' }, h('div', null, h('h2', null, title), h('small', null, update.currentVersion ? `当前运行 ${update.currentVersion}` : '正在检查版本…', update.checkedAt ? ` · 上次检查 ${date(update.checkedAt)}` : '')), h('div', { className: 'jm-row' },
+          !restart && update.available && h(Button, { primary: true, disabled: !update.canInstall || taskRunning || !ready || working || update.checking, onClick: installUpdate }, working ? '更新中…' : update.phase === 'failed' ? '重试更新' : '更新插件'),
+          h(Button, { disabled: working || update.checking, onClick: () => refreshUpdates(true) }, update.checking ? '检查中…' : '检查更新'))),
+        restart && h('p', { role: 'status' }, '退出 DSH 再重新打开后生效。求职资料保留在原工作区。'),
+        working && h('p', { role: 'status' }, 'DSH 正在下载并安装更新，请稍候。'),
+        update.error && h('p', { role: 'alert' }, update.error),
+        update.available && !restart && !working && h('p', { className: 'jm-muted' }, taskRunning ? '请先结束正在执行的求职任务，再更新插件。' : update.reason || '更新由 DSH 插件管理器安装，完成后按提示重启。'),
+        update.release && h('details', { open: update.available || restart }, h('summary', null, '更新日志 · ' + update.release.version), h('div', { className: 'jm-update-notes', tabIndex: 0, 'aria-label': '更新日志内容' }, update.release.publishedAt && h('time', { dateTime: update.release.publishedAt }, date(update.release.publishedAt)), h('div', null, update.release.notes || '此版本未提供更新日志。')), h('p', null, h('a', { href: update.release.url, target: '_blank', rel: 'noopener noreferrer' }, '在 GitHub 查看完整发布'))))
+    }
     function Workbench({ ctx }) {
+      const updates = useUpdates()
       const [state, setState] = useState(null), [error, setError] = useState(''), [busy, setBusy] = useState(false)
       const [notice, setNotice] = useState(''), [query, setQuery] = useState(''), [filter, setFilter] = useState('')
       const [selected, setSelected] = useState(null), [file, setFile] = useState(null)
@@ -70,17 +126,19 @@ window.__ModuleLoader__.load({
       }
       const records = useMemo(() => (state?.records || []).filter(r => (!filter || r.status === filter) && (!query || (r.company + ' ' + r.title).toLowerCase().includes(query.toLowerCase()))), [state, query, filter])
       const record = state?.records?.find(r => JSON.stringify([r.account, r.threadKey]) === selected)
-      const blocked = busy || Boolean(error)
+      const updating = updates.phase === 'installing'
+      const blocked = busy || Boolean(error) || updating
       const intro = !state?.configured || state?.resumeNeedsReview
       return h('main', { className: 'jm', 'aria-busy': busy }, h('style', null, STYLE), h('div', { className: 'jm-shell' },
         h('header', { className: 'jm-head' }, h('div', null, h('div', { className: 'jm-eyebrow' }, 'JOB MATE · 职伴'), h('h1', null, '你的求职进展')), h('div', { className: 'jm-row' }, state?.configured && h(Button, { disabled: blocked, onClick: () => launch('preferences') }, '调整求职偏好'), h(Button, { disabled: busy, onClick: refresh }, '刷新'))),
+        h(UpdatePanel, { taskRunning: Boolean(state?.run), ready: Boolean(state) && !busy && !error }),
         error && h('div', { className: 'jm-alert', role: 'alert' }, h('p', null, error), state && h('small', null, '以下为上次完整快照，恢复读取前不能发起任务。')),
         notice && h('p', { role: 'status', className: 'jm-alert' }, notice),
         !state && !error && h('p', { role: 'status' }, '正在读取求职进展…'),
         state && intro && h('section', { className: 'jm-card jm-hero' }, h('div', { className: 'jm-eyebrow' }, '从你的经历开始'), h('h2', null, state.resume ? '简历已就绪，接下来聊聊你想找的工作' : '一份简历，就可以开始'), h('p', { className: 'jm-muted' }, 'Agent 会读取你的经历，再问几个求职偏好。资料确认后，就能筛选职位、整理 HR 消息。'),
           state.resume && h('p', null, '当前简历：', h('strong', null, state.resume.name)),
-          h('label', { className: 'jm-upload' }, state.resume ? '更换简历' : '选择一份简历文档', h('small', null, ' · PDF / DOCX / HTML / TXT / Markdown，最大 5 MB'), h('input', { type: 'file', accept: '.pdf,.docx,.html,.htm,.txt,.md', disabled: busy || Boolean(state.run), onChange: e => setFile(e.target.files?.[0] || null) })),
-          h('div', { className: 'jm-row' }, file && h(Button, { primary: true, disabled: busy, onClick: upload }, busy ? '正在读取…' : '读取这份简历'), !file && h(Button, { primary: true, disabled: blocked, onClick: () => launch('onboarding') }, state.resume ? '继续对话，确认求职偏好' : '在对话中提供简历')),
+          h('label', { className: 'jm-upload' }, state.resume ? '更换简历' : '选择一份简历文档', h('small', null, ' · PDF / DOCX / HTML / TXT / Markdown，最大 5 MB'), h('input', { type: 'file', accept: '.pdf,.docx,.html,.htm,.txt,.md', disabled: blocked || Boolean(state.run), onChange: e => setFile(e.target.files?.[0] || null) })),
+          h('div', { className: 'jm-row' }, file && h(Button, { primary: true, disabled: blocked, onClick: upload }, busy ? '正在读取…' : '读取这份简历'), !file && h(Button, { primary: true, disabled: blocked, onClick: () => launch('onboarding') }, state.resume ? '继续对话，确认求职偏好' : '在对话中提供简历')),
           h('div', { className: 'jm-steps' }, h('span', null, '01 提供简历'), h('span', null, '02 确认偏好'), h('span', null, '03 开始求职')),
           h('p', { className: 'jm-footer jm-muted' }, '简历保存在本机工作区；Agent 分析时可能交给你所用的模型服务。开始按钮打开待发送的会话草稿。')),
         state?.paused && h('div', { className: 'jm-alert', role: 'status' }, h('strong', null, '求职任务已暂停'), h('p', null, 'Agent 的下一次发送前检查会停止外发。'), h(Button, { disabled: blocked, onClick: () => perform(() => api('/pause', { paused: false })) }, '解除暂停')),
@@ -99,7 +157,7 @@ window.__ModuleLoader__.load({
       ))
     }
     return { inject: ['slots', 'uiWorkspace'], apply(ctx) {
-      ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id: 'job-mate', order: 40, label: () => '职伴' }, Icon))
+      ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id: 'job-mate', order: 40, label: () => '职伴' }, UpdateIcon))
       const Panel = () => h(Workbench, { ctx })
       ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'job-mate' }, Panel))
     } }

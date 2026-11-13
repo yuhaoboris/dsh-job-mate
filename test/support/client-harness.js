@@ -15,13 +15,14 @@ export const deferred = () => { let resolve; const promise = new Promise(r => { 
  * Hook dependency caches and per-instance state survive rerenders and are removed on unmount.
  * This is not a browser/React reconciler conformance test.
  */
-export async function mount({ initialResponse, recordsResponse, uiWorkspace } = {}) {
-  let module, Panel, active, cursor, pending = [], dirty = false, response, tree
+export async function mount({ initialResponse, recordsResponse, uiWorkspace, updateResponse, sidebarOnly = false } = {}) {
+  let module, Panel, Sidebar, active, cursor, pending = [], dirty = false, response, tree
   const instances = new Map(), timers = new Map(), requests = [], queued = []
   let nextTimer = 0
   const state = { schemaVersion: 2, version: '2.0.0', workspace: '/fixture', configured: false,
     profile: null, resume: null, run: null, records: [], decisions: [], attempts: [], counts: {total:0,waiting:0,interview:0,decisions:0,uncertain:0} }
   response = initialResponse ?? { ok: true, state }
+  updateResponse ??= { ok: true, update: { phase: 'current', currentVersion: '2.0.0', canInstall: false } }
   const react = {
     createElement: (type, props, ...children) => ({ type, props: { ...props, children }, children }),
     useState(initial) {
@@ -51,7 +52,7 @@ export async function mount({ initialResponse, recordsResponse, uiWorkspace } = 
     window: { __ModuleLoader__: { load(value) { module = value.factory(() => react) } } },
     fetch: async (url, init) => {
       requests.push({ url, init, body: init?.body ? JSON.parse(init.body) : null })
-      const next = queued.length ? queued.shift() : structuredClone(url.endsWith('/records')
+      const next = url.includes('/updates') ? structuredClone(updateResponse) : queued.length ? queued.shift() : structuredClone(url.endsWith('/records')
         ? recordsResponse ?? { ok: true, records: response.state?.records ?? [], history: [],
           workspaceVersion: response.state?.settings?.workspaceVersion, ledger: response.state?.ledger }
         : response)
@@ -64,7 +65,7 @@ export async function mount({ initialResponse, recordsResponse, uiWorkspace } = 
     clearInterval(id) { timers.delete(id) },
     btoa: value => Buffer.from(value, 'binary').toString('base64'),
   })
-  const services = { uiWorkspace, slots: { inject(_name, fn) { fn() }, register(slot, component) { if (slot.name === 'main') Panel = component } } }
+  const services = { uiWorkspace, slots: { inject(_name, fn) { fn() }, register(slot, component) { if (slot.name === 'main') Panel = component; if (slot.name === 'sidebar.panellist') Sidebar = component } } }
   module.apply(new Proxy(services, { get(target, name) {
     if (!module.inject.includes(name)) throw new Error(`cannot get property ${String(name)} without inject`)
     return target[name]
@@ -93,7 +94,7 @@ export async function mount({ initialResponse, recordsResponse, uiWorkspace } = 
       if (++rounds > 30) throw new Error('Hook harness did not settle')
       dirty = false
       const seen = new Set()
-      tree = expand(react.createElement(Panel, {}), 'root', seen)
+      tree = expand(react.createElement(sidebarOnly ? Sidebar : Panel, {}), 'root', seen)
       for (const [identity, owner] of instances) if (!seen.has(identity)) {
         owner.cleanups.forEach(fn => fn?.()); instances.delete(identity)
       }
@@ -107,6 +108,7 @@ export async function mount({ initialResponse, recordsResponse, uiWorkspace } = 
     render, flush, state, timers, requestLog: requests,
     get requests() { return requests.length },
     setResponse(value) { response = value },
+    setUpdateResponse(value) { updateResponse = value },
     deferNext() { const gate = deferred(); queued.push(gate.promise); return gate },
     findButton(label) { return nodes(render()).find(node => node.type === 'button' && textOf(node).includes(label)) },
     click(label) {
