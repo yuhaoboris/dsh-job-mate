@@ -20,6 +20,8 @@ if (process.argv.includes('--check')) {
   const index = process.argv.indexOf('--source')
   if (index < 0 || !process.argv[index + 1]) throw Error('Use --source /path/to/job-mate [--development], or --check')
   const source = path.resolve(process.argv[index + 1])
+  const version = fs.readFileSync(path.join(source, 'core/job_mate.py'), 'utf8').match(/^VERSION = '([0-9]+\.[0-9]+\.[0-9]+)'$/m)?.[1]
+  if (!version) throw Error('Upstream core must declare a release version')
   const development = process.argv.includes('--development')
   execFileSync(process.env.JOB_MATE_PYTHON || 'python3', [path.join(source, 'scripts/build.py'), '--check'], { stdio: 'inherit' })
   const dirty = execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: source, encoding: 'utf8' }).trim()
@@ -33,6 +35,6 @@ if (process.argv.includes('--check')) {
   }
   fs.copyFileSync(path.join(source, 'LICENSE'), path.join(root, 'vendor/job-mate/LICENSE'))
   const hashes = Object.fromEntries([...files(path.join(root, 'skills')), ...files(path.join(root, 'vendor/job-mate'))].sort().map(file => [path.relative(root, file).replaceAll(path.sep, '/'), digest(file)]))
-  fs.writeFileSync(lockPath, JSON.stringify({ repository: 'https://github.com/yuhaoboris/job-mate', version: '2.0.0', commit, files: hashes }, null, 2) + '\n')
+  fs.writeFileSync(lockPath, JSON.stringify({ repository: 'https://github.com/yuhaoboris/job-mate', version, commit, files: hashes }, null, 2) + '\n')
   console.log('Copied unmodified upstream skills and license')
 }
