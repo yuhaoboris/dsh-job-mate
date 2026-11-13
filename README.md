@@ -4,9 +4,25 @@
 
 插件直接携带上游原版技能。工作流和数据规则只在 job-mate 维护；插件与独立技能通过同一个核心读写同一工作区。
 
-## 使用
+## 安装
 
-从 [Releases](https://github.com/yuhaoboris/dsh-job-mate/releases/latest) 下载 `yuhaoboris-dsh-job-mate-*.tgz`，在 Harness 的插件管理中安装。也可以按下方开发步骤自行构建，或安装本地项目目录。包名为 `@yuhaoboris/dsh-job-mate`。
+在 DeepSeek Harness 中打开「插件 → 添加插件」，输入以下 **GitHub 仓库地址**，然后点击「安装」：
+
+```text
+https://github.com/yuhaoboris/dsh-job-mate
+```
+
+无需下载或解压安装包。当前通过 GitHub 分发，请填写上面的完整地址，不要只填 npm 包名。
+
+也可以使用 DSH CLI 安装到 `web` profile：
+
+```sh
+dsh plugin --profile web add https://github.com/yuhaoboris/dsh-job-mate
+```
+
+GitHub 仓库地址和本地目录均属于 [DSH 官方支持的安装来源](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md)。开发时可在同一个「添加插件」输入框填写本项目的绝对目录路径。
+
+## 开始使用
 
 1. 打开侧栏「职伴」，选择 PDF、DOCX、HTML、TXT 或 Markdown 简历。
 2. 点「继续对话」，在会话中发送准备好的任务。Agent 读取简历，询问缺少的偏好，确认后保存。
