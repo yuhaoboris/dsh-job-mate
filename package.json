@@ -1,6 +1,6 @@
 {
   "name": "@yuhaoboris/dsh-job-mate",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "description": "职伴：DeepSeek Harness 求职工作台（BOSS 直聘筛选、跟进与沟通记录）",
   "type": "module",
   "engines": {
