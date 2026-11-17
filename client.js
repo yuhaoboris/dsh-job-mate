@@ -6,7 +6,7 @@ window.__ModuleLoader__.load({
     const { useState, useEffect, useRef, useCallback, useMemo } = React
     const h = React.createElement
     const LABELS = { qualified: '待沟通', pending: '待核实', excluded: '已排除', waiting: '等待回复', replied: '收到回复', interview: '面试邀约', closed: '已结束', uncertain: '发送待核对', failed_no_send: '确定未发' }
-    const KINDS = { screen: '筛选职位', greet: '首次沟通', reply: '回复', nudge: '跟进', resume: '发送简历', inbound: '对方消息摘要', observe: '会话观察' }
+    const KINDS = { screen: '筛选职位', greet: '首次沟通', reply: '回复', nudge: '跟进', resume: '发送简历', outbound: '已发消息', inbound: '对方消息摘要', observe: '会话观察' }
     // Source palette: job-mate/assets/branding/README.md.
     const BRAND = { mint: '#D0F7E4', green: '#85DF77', lime: '#D2EB35', accent: '#49B86E', black: '#111111' }
     const STYLE = `
@@ -426,13 +426,17 @@ window.__ModuleLoader__.load({
     function RecordDetails({ record, id, disabled, onFollowup }) {
       return h('section', { id, className: 'jm-detail', 'aria-label': '会话详情' },
         h('h3', null, '沟通历史'), h('small', null, '页面账号 ', record.account),
-        h('ol', { className: 'jm-timeline' }, record.history.map(event =>
-          h('li', { key: event.id },
-            h('div', { className: 'jm-event-head' }, h('strong', null, KINDS[event.kind] || event.kind), h(Time, { value: event.at })),
-            event.status && h('p', null, event.status === 'sent' ? 'Agent 已记录送达' : LABELS[event.status] || '发送结果不明'),
+        h('ol', { className: 'jm-timeline' }, record.history.map(event => {
+          const label = event.kind === 'inbound' && event.importedAt ? '对方消息' : KINDS[event.kind] || event.kind
+          const sentLabel = event.importedAt && !event.attemptId ? '历史已发' : 'Agent 已记录送达'
+          const evidence = event.evidence || event.historyEvidence
+          return h('li', { key: event.id },
+            h('div', { className: 'jm-event-head' }, h('strong', null, label), h(Time, { value: event.at })),
+            event.status && h('p', null, event.status === 'sent' ? sentLabel : LABELS[event.status] || '发送结果不明'),
             event.text && h('p', { className: 'jm-text' }, event.text),
             event.reasons?.length > 0 && h('p', null, event.reasons.join('；')),
-            event.evidence && h('small', null, '记录依据 ', event.evidence)))),
+            evidence && h('small', null, '记录依据 ', evidence))
+        })),
         h(Button, { icon: 'message', disabled, onClick: () => onFollowup(record.threadKey) }, '在对话中查看这个会话'))
     }
 

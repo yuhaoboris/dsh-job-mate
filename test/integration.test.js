@@ -49,6 +49,30 @@ test('session preparation binds latest state and never grants sending', async t 
   await assert.rejects(service.session({ task: 'decision', decisionId: 'missing' }), /事项已变化/)
 })
 
+test('the agent tool exposes history import and the panel reads the original message order', async t => {
+  const { service } = await fixture(t)
+  let tool
+  registerJobMateTool({ tools: { register(x) { tool = x } } }, service, { getConnection: () => ({ requestRejection: () => null }) })
+  assert.ok(tool.parameters.properties.request.properties.op.enum.includes('import_history'))
+  const { state } = await service.uploadResume({ name: 'resume.txt', data: Buffer.from('Synthetic frontend engineer').toString('base64') })
+  const run = await tool.execute({ request: { op: 'begin', revision: state.revision, skill: 'followup',
+    account: target.account, accountEvidence: 'Synthetic visible identity', noSend: true, actions: [] } })
+  assert.equal(run.ok, true, run.error?.message)
+  const request = { op: 'import_history', runId: run.result.id, target, evidence: 'Synthetic conversation history', messages: [
+    { kind: 'inbound', messageKey: 'reply', at: '2025-01-02T09:00:00+08:00', text: 'Synthetic reply' },
+    { kind: 'outbound', messageKey: 'greeting', at: '2025-01-01T09:00:00+08:00', text: 'Synthetic greeting' },
+  ] }
+  const saved = await tool.execute({ request })
+  assert.deepEqual(saved.result, { imported: 2, updated: 0, unchanged: 0 })
+  const repeated = await tool.execute({ request })
+  assert.deepEqual(repeated.result, { imported: 0, updated: 0, unchanged: 2 })
+  assert.equal(repeated.revision, saved.revision)
+  const panel = (await service.snapshot()).state
+  assert.deepEqual(panel.records[0].history.map(event => event.at), ['2025-01-01T01:00:00Z', '2025-01-02T01:00:00Z'])
+  assert.equal(panel.records[0].status, 'replied')
+  assert.deepEqual(panel.attempts, [])
+})
+
 test('missing Python produces an actionable error without data loss', async t => {
   const { root } = await fixture(t)
   await assert.rejects(callCore(root, { op: 'snapshot' }, { python: join(root, 'missing-python') }), /Python 3.9/)
